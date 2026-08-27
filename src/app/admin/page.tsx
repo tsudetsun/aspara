@@ -1,7 +1,7 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-
-type Priority = "urgent" | "soon" | "safe";
+import { PRIORITY_INFO, predictFarmStatus, type Priority } from "@/lib/farm-status";
 
 type FarmRow = {
   id: string;
@@ -27,30 +27,6 @@ type FarmStatus = {
   priority: Priority;
 };
 
-const PRIORITY_INFO: Record<
-  Priority,
-  { emoji: string; label: string; badge: string; card: string }
-> = {
-  urgent: {
-    emoji: "🔴",
-    label: "最優先",
-    badge: "bg-red-100 text-red-700",
-    card: "border-red-200 bg-red-50",
-  },
-  soon: {
-    emoji: "🟡",
-    label: "優先",
-    badge: "bg-amber-100 text-amber-700",
-    card: "border-amber-200 bg-amber-50",
-  },
-  safe: {
-    emoji: "🟢",
-    label: "余裕あり",
-    badge: "bg-green-100 text-green-700",
-    card: "border-green-200 bg-green-50",
-  },
-};
-
 const YIELD_HISTORY_DAYS = 30;
 
 function formatToday() {
@@ -66,44 +42,19 @@ function todayString() {
   return new Date().toISOString().slice(0, 10);
 }
 
-// 過去の平均発生量から、保管上限に到達するまでの日数をシンプルに見積もる
 function buildFarmStatus(farm: FarmRow, avgDailyYield: number): FarmStatus {
   const currentStock = farm.current_stock_kg;
   const capacity = farm.capacity_kg;
-  const base = {
+  const prediction = predictFarmStatus(capacity, currentStock, avgDailyYield);
+
+  return {
     id: farm.id,
     name: farm.name || "(名称未登録)",
     address: farm.address || "住所未登録",
     currentStock,
     capacity,
+    ...prediction,
   };
-
-  if (capacity <= 0) {
-    return { ...base, priority: "safe", predictedLabel: "上限未設定" };
-  }
-
-  const remaining = capacity - currentStock;
-  if (remaining <= 0) {
-    return { ...base, priority: "urgent", predictedLabel: "今日中" };
-  }
-
-  if (avgDailyYield > 0) {
-    const days = Math.ceil(remaining / avgDailyYield);
-    const predictedLabel =
-      days <= 0 ? "今日中" : days === 1 ? "明日" : `${days}日後`;
-    const priority: Priority = days <= 0 ? "urgent" : days <= 2 ? "soon" : "safe";
-    return { ...base, priority, predictedLabel };
-  }
-
-  // 発生量の登録履歴がまだ無い場合は、現在の充填率で簡易判定する
-  const percent = currentStock / capacity;
-  if (percent >= 0.9) {
-    return { ...base, priority: "urgent", predictedLabel: "今日中" };
-  }
-  if (percent >= 0.6) {
-    return { ...base, priority: "soon", predictedLabel: "数日以内" };
-  }
-  return { ...base, priority: "safe", predictedLabel: "予測不可" };
 }
 
 export default async function AdminHomePage() {
@@ -169,6 +120,7 @@ export default async function AdminHomePage() {
 
   const urgentFarms = farms.filter((f) => f.priority === "urgent");
   const totalStock = farms.reduce((sum, f) => sum + f.currentStock, 0);
+  const totalCapacity = farms.reduce((sum, f) => sum + f.capacity, 0);
   const needsCollectionCount = farms.filter(
     (f) => f.priority !== "safe",
   ).length;
@@ -209,9 +161,12 @@ export default async function AdminHomePage() {
                     className="rounded-xl border border-red-200 bg-red-50 p-4"
                   >
                     <div className="flex items-center justify-between">
-                      <p className="text-lg font-bold text-slate-900">
+                      <Link
+                        href={`/admin/farms/${farm.id}`}
+                        className="text-lg font-bold text-slate-900 hover:underline"
+                      >
                         {PRIORITY_INFO.urgent.emoji} {farm.name}
-                      </p>
+                      </Link>
                       <span className="rounded-full bg-red-600 px-2.5 py-1 text-xs font-semibold text-white">
                         {farm.predictedLabel}
                       </span>
@@ -257,6 +212,16 @@ export default async function AdminHomePage() {
             <p className="text-sm text-slate-500">現在の総保管量</p>
             <p className="mt-2 text-3xl font-bold text-slate-900">
               {totalStock}
+              <span className="ml-1 text-base font-normal text-slate-500">
+                kg
+              </span>
+            </p>
+          </div>
+
+          <div className="rounded-xl bg-white p-5 shadow-sm">
+            <p className="text-sm text-slate-500">総保管可能量</p>
+            <p className="mt-2 text-3xl font-bold text-slate-900">
+              {totalCapacity}
               <span className="ml-1 text-base font-normal text-slate-500">
                 kg
               </span>
@@ -337,7 +302,12 @@ export default async function AdminHomePage() {
                     return (
                       <tr key={farm.id} className="border-b border-slate-100">
                         <td className="py-2 pr-4 font-medium text-slate-900">
-                          {farm.name}
+                          <Link
+                            href={`/admin/farms/${farm.id}`}
+                            className="hover:underline"
+                          >
+                            {farm.name}
+                          </Link>
                         </td>
                         <td className="py-2 pr-4 text-slate-700">
                           {farm.currentStock}kg

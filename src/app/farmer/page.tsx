@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import YieldForm from "./yield-form";
@@ -96,10 +97,20 @@ export default async function FarmerHomePage() {
   return (
     <div className="min-h-screen bg-green-50 pb-16">
       <header className="border-b border-green-100 bg-white px-4 py-5">
-        <p className="text-sm text-slate-500">{formatToday()}</p>
-        <h1 className="mt-1 text-xl font-bold text-slate-900">
-          {farm?.name ? `${farm.name} さん` : "マイページ"}
-        </h1>
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-sm text-slate-500">{formatToday()}</p>
+            <h1 className="mt-1 text-xl font-bold text-slate-900">
+              {farm?.name ? `${farm.name} さん` : "マイページ"}
+            </h1>
+          </div>
+          <Link
+            href="/farmer/profile"
+            className="mt-1 shrink-0 rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-sm font-medium text-green-800"
+          >
+            農家情報を編集
+          </Link>
+        </div>
       </header>
 
       <main className="mx-auto max-w-md px-4 py-6">
