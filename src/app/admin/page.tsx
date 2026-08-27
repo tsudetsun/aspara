@@ -161,12 +161,9 @@ export default async function AdminHomePage() {
                     className="rounded-xl border border-red-200 bg-red-50 p-4"
                   >
                     <div className="flex items-center justify-between">
-                      <Link
-                        href={`/admin/farms/${farm.id}`}
-                        className="text-lg font-bold text-slate-900 hover:underline"
-                      >
+                      <p className="text-lg font-bold text-slate-900">
                         {PRIORITY_INFO.urgent.emoji} {farm.name}
-                      </Link>
+                      </p>
                       <span className="rounded-full bg-red-600 px-2.5 py-1 text-xs font-semibold text-white">
                         {farm.predictedLabel}
                       </span>
@@ -189,6 +186,13 @@ export default async function AdminHomePage() {
                         />
                       </div>
                     </div>
+
+                    <Link
+                      href={`/admin/farms/${farm.id}`}
+                      className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-red-700 hover:underline"
+                    >
+                      農家の詳細を見る →
+                    </Link>
                   </div>
                 );
               })}
@@ -279,6 +283,9 @@ export default async function AdminHomePage() {
           <h2 className="text-base font-semibold text-slate-900">
             農家別の保管状況
           </h2>
+          <p className="mt-1 text-xs text-slate-400">
+            農家名または「詳細を見る」から、住所・連絡先などの詳細ページを確認できます。
+          </p>
           {farms.length === 0 ? (
             <p className="mt-4 text-sm text-slate-400">
               登録されている農家がまだありません。
@@ -293,7 +300,8 @@ export default async function AdminHomePage() {
                     <th className="py-2 pr-4 font-medium">保管上限</th>
                     <th className="py-2 pr-4 font-medium">残り容量</th>
                     <th className="py-2 pr-4 font-medium">予測</th>
-                    <th className="py-2 font-medium">優先度</th>
+                    <th className="py-2 pr-4 font-medium">優先度</th>
+                    <th className="py-2 font-medium">詳細</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -304,7 +312,7 @@ export default async function AdminHomePage() {
                         <td className="py-2 pr-4 font-medium text-slate-900">
                           <Link
                             href={`/admin/farms/${farm.id}`}
-                            className="hover:underline"
+                            className="text-blue-700 underline underline-offset-2 hover:text-blue-900"
                           >
                             {farm.name}
                           </Link>
@@ -321,12 +329,20 @@ export default async function AdminHomePage() {
                         <td className="py-2 pr-4 text-slate-700">
                           {farm.predictedLabel}
                         </td>
-                        <td className="py-2">
+                        <td className="py-2 pr-4">
                           <span
                             className={`rounded-full px-2.5 py-1 text-xs font-semibold ${info.badge}`}
                           >
                             {info.emoji} {info.label}
                           </span>
+                        </td>
+                        <td className="py-2">
+                          <Link
+                            href={`/admin/farms/${farm.id}`}
+                            className="whitespace-nowrap text-sm font-semibold text-blue-700 hover:underline"
+                          >
+                            詳細を見る →
+                          </Link>
                         </td>
                       </tr>
                     );
