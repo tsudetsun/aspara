@@ -1,6 +1,9 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import CapacityForm from "./capacity-form";
 import FarmInfoForm from "./farm-info-form";
 
@@ -13,34 +16,58 @@ type Farm = {
   memo: string;
 };
 
-export default async function FarmerProfilePage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+const EMPTY_FARM: Farm = {
+  name: "",
+  address: "",
+  phone: "",
+  capacity_kg: 0,
+  current_stock_kg: 0,
+  memo: "",
+};
 
-  if (!user) {
-    redirect("/login/farmer");
+export default function FarmerProfilePage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [farm, setFarm] = useState<Farm>(EMPTY_FARM);
+  const [reloadKey, setReloadKey] = useState(0);
+  const reload = () => setReloadKey((k) => k + 1);
+
+  useEffect(() => {
+    async function loadData() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.replace("/login/farmer");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("farms")
+        .select("name, address, phone, capacity_kg, current_stock_kg, memo")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("[FarmerProfilePage] farms select failed:", error);
+      }
+
+      setFarm((data ?? EMPTY_FARM) as Farm);
+      setLoading(false);
+    }
+
+    loadData();
+  }, [router, reloadKey]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-green-50">
+        <p className="text-sm text-slate-500">読み込み中...</p>
+      </div>
+    );
   }
-
-  const { data, error } = await supabase
-    .from("farms")
-    .select("name, address, phone, capacity_kg, current_stock_kg, memo")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (error) {
-    console.error("[FarmerProfilePage] farms select failed:", error);
-  }
-
-  const farm = (data ?? {
-    name: "",
-    address: "",
-    phone: "",
-    capacity_kg: 0,
-    current_stock_kg: 0,
-    memo: "",
-  }) as Farm;
 
   return (
     <div className="min-h-screen bg-green-50 pb-16">
@@ -61,7 +88,7 @@ export default async function FarmerProfilePage() {
             最大で保管できる量を設定してください。
           </p>
           <div className="mt-4">
-            <CapacityForm capacityKg={farm.capacity_kg} />
+            <CapacityForm capacityKg={farm.capacity_kg} onSuccess={reload} />
           </div>
         </section>
 
@@ -77,6 +104,7 @@ export default async function FarmerProfilePage() {
               address={farm.address}
               phone={farm.phone}
               memo={farm.memo}
+              onSuccess={reload}
             />
           </div>
         </section>

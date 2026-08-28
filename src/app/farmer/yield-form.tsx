@@ -11,7 +11,11 @@ function todayString() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export default function YieldForm() {
+export default function YieldForm({
+  onSuccess,
+}: {
+  onSuccess?: () => void;
+}) {
   const [state, formAction, pending] = useActionState(
     registerYield,
     initialState
@@ -25,6 +29,7 @@ export default function YieldForm() {
     setLastStatus(state.status);
     if (state.status === "success") {
       setAmount("");
+      onSuccess?.();
     }
   }
 

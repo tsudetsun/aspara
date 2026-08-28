@@ -1,19 +1,29 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { updateCapacity, type UpdateFarmState } from "./actions";
 
 const initialState: UpdateFarmState = { status: "idle" };
 
 export default function CapacityForm({
   capacityKg,
+  onSuccess,
 }: {
   capacityKg: number;
+  onSuccess?: () => void;
 }) {
   const [state, formAction, pending] = useActionState(
     updateCapacity,
     initialState
   );
+
+  const [lastStatus, setLastStatus] = useState(state.status);
+  if (state.status !== lastStatus) {
+    setLastStatus(state.status);
+    if (state.status === "success") {
+      onSuccess?.();
+    }
+  }
 
   return (
     <form action={formAction}>

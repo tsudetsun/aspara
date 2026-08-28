@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { updateFarmInfo, type UpdateFarmState } from "./actions";
 
 const initialState: UpdateFarmState = { status: "idle" };
@@ -10,16 +10,26 @@ export default function FarmInfoForm({
   address,
   phone,
   memo,
+  onSuccess,
 }: {
   name: string;
   address: string;
   phone: string;
   memo: string;
+  onSuccess?: () => void;
 }) {
   const [state, formAction, pending] = useActionState(
     updateFarmInfo,
     initialState
   );
+
+  const [lastStatus, setLastStatus] = useState(state.status);
+  if (state.status !== lastStatus) {
+    setLastStatus(state.status);
+    if (state.status === "success") {
+      onSuccess?.();
+    }
+  }
 
   return (
     <form action={formAction}>

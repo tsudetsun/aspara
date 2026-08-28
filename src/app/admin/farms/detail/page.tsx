@@ -1,6 +1,9 @@
+"use client";
+
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { useRouter, useSearchParams } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { PRIORITY_INFO, predictFarmStatus } from "@/lib/farm-status";
 
 type Farm = {
@@ -30,61 +33,104 @@ function formatDate(dateStr: string) {
   }).format(new Date(dateStr));
 }
 
-export default async function AdminFarmDetailPage({
-  params,
-}: PageProps<"/admin/farms/[id]">) {
-  const { id } = await params;
+function AdminFarmDetailContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const id = searchParams.get("id");
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [loading, setLoading] = useState(true);
+  const [farm, setFarm] = useState<Farm | null>(null);
+  const [recentRecords, setRecentRecords] = useState<YieldRecord[]>([]);
+  const [avgDailyYield, setAvgDailyYield] = useState(0);
 
-  if (!user) {
-    redirect("/login/admin");
+  useEffect(() => {
+    if (!id) {
+      return;
+    }
+
+    async function loadData() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.replace("/login/admin");
+        return;
+      }
+
+      const historyStart = new Date();
+      historyStart.setDate(historyStart.getDate() - YIELD_HISTORY_DAYS);
+
+      const [farmResult, recentYieldResult, historyYieldResult] =
+        await Promise.all([
+          supabase
+            .from("farms")
+            .select(
+              "id, name, address, phone, capacity_kg, current_stock_kg, memo"
+            )
+            .eq("id", id)
+            .maybeSingle(),
+          supabase
+            .from("yield_records")
+            .select("id, occurred_on, amount_kg")
+            .eq("farm_id", id)
+            .order("occurred_on", { ascending: false })
+            .order("created_at", { ascending: false })
+            .limit(RECENT_RECORDS_LIMIT),
+          supabase
+            .from("yield_records")
+            .select("amount_kg")
+            .eq("farm_id", id)
+            .gte("occurred_on", historyStart.toISOString().slice(0, 10)),
+        ]);
+
+      if (farmResult.error) {
+        console.error("[AdminFarmDetailPage] farm fetch failed:", farmResult.error);
+      }
+
+      const farmData = farmResult.data as Farm | null;
+      if (!farmData) {
+        setLoading(false);
+        return;
+      }
+
+      const historyTotal = (historyYieldResult.data ?? []).reduce(
+        (sum, r) => sum + (r as { amount_kg: number }).amount_kg,
+        0
+      );
+
+      setFarm(farmData);
+      setRecentRecords((recentYieldResult.data ?? []) as YieldRecord[]);
+      setAvgDailyYield(historyTotal / YIELD_HISTORY_DAYS);
+      setLoading(false);
+    }
+
+    loadData();
+  }, [id, router]);
+
+  if (!id || (!loading && !farm)) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-100">
+        <p className="text-sm text-slate-500">農家が見つかりませんでした。</p>
+        <Link href="/admin" className="text-sm text-blue-700 hover:underline">
+          ← ダッシュボードに戻る
+        </Link>
+      </div>
+    );
   }
 
-  const historyStart = new Date();
-  historyStart.setDate(historyStart.getDate() - YIELD_HISTORY_DAYS);
-
-  const [farmResult, recentYieldResult, historyYieldResult] =
-    await Promise.all([
-      supabase
-        .from("farms")
-        .select(
-          "id, name, address, phone, capacity_kg, current_stock_kg, memo"
-        )
-        .eq("id", id)
-        .maybeSingle(),
-      supabase
-        .from("yield_records")
-        .select("id, occurred_on, amount_kg")
-        .eq("farm_id", id)
-        .order("occurred_on", { ascending: false })
-        .order("created_at", { ascending: false })
-        .limit(RECENT_RECORDS_LIMIT),
-      supabase
-        .from("yield_records")
-        .select("amount_kg")
-        .eq("farm_id", id)
-        .gte("occurred_on", historyStart.toISOString().slice(0, 10)),
-    ]);
-
-  if (farmResult.error) {
-    console.error("[AdminFarmDetailPage] farm fetch failed:", farmResult.error);
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100">
+        <p className="text-sm text-slate-500">読み込み中...</p>
+      </div>
+    );
   }
 
-  const farm = farmResult.data as Farm | null;
   if (!farm) {
-    notFound();
+    return null;
   }
-
-  const recentRecords = (recentYieldResult.data ?? []) as YieldRecord[];
-  const historyTotal = (historyYieldResult.data ?? []).reduce(
-    (sum, r) => sum + (r as { amount_kg: number }).amount_kg,
-    0
-  );
-  const avgDailyYield = historyTotal / YIELD_HISTORY_DAYS;
 
   const { priority, predictedLabel } = predictFarmStatus(
     farm.capacity_kg,
@@ -213,5 +259,19 @@ export default async function AdminFarmDetailPage({
         </section>
       </main>
     </div>
+  );
+}
+
+export default function AdminFarmDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-slate-100">
+          <p className="text-sm text-slate-500">読み込み中...</p>
+        </div>
+      }
+    >
+      <AdminFarmDetailContent />
+    </Suspense>
   );
 }
