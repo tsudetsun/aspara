@@ -111,6 +111,12 @@ export default function FarmerHomePage() {
     loadData();
   }, [router, reloadKey]);
 
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.replace("/");
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-green-50">
@@ -135,12 +141,21 @@ export default function FarmerHomePage() {
               {farm?.name ? `${farm.name} さん` : "マイページ"}
             </h1>
           </div>
-          <Link
-            href="/farmer/profile"
-            className="mt-1 shrink-0 rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-sm font-medium text-green-800"
-          >
-            農家情報を編集
-          </Link>
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            <Link
+              href="/farmer/profile"
+              className="rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-sm font-medium text-green-800"
+            >
+              農家情報を編集
+            </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="text-xs text-slate-400 underline"
+            >
+              ログアウト
+            </button>
+          </div>
         </div>
       </header>
 
