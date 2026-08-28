@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -12,6 +12,31 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    async function checkSession() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setChecking(false);
+        return;
+      }
+
+      const role = await getUserRole(supabase, user.id);
+      if (role === "admin") {
+        router.replace("/admin");
+        return;
+      }
+
+      setChecking(false);
+    }
+
+    checkSession();
+  }, [router]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -40,6 +65,14 @@ export default function AdminLoginPage() {
     }
 
     router.push("/admin");
+  }
+
+  if (checking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100">
+        <p className="text-sm text-slate-500">読み込み中...</p>
+      </div>
+    );
   }
 
   return (

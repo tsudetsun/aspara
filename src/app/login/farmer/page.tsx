@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -12,6 +12,31 @@ export default function FarmerLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    async function checkSession() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setChecking(false);
+        return;
+      }
+
+      const role = await getUserRole(supabase, user.id);
+      if (role === "farmer") {
+        router.replace("/farmer");
+        return;
+      }
+
+      setChecking(false);
+    }
+
+    checkSession();
+  }, [router]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -40,6 +65,14 @@ export default function FarmerLoginPage() {
     }
 
     router.push("/farmer");
+  }
+
+  if (checking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-green-50">
+        <p className="text-sm text-green-700">読み込み中...</p>
+      </div>
+    );
   }
 
   return (

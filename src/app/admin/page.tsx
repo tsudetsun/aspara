@@ -144,6 +144,12 @@ export default function AdminHomePage() {
     loadData();
   }, [router]);
 
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.replace("/");
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
@@ -162,11 +168,20 @@ export default function AdminHomePage() {
   return (
     <div className="min-h-screen bg-slate-100 pb-16">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-          <p className="text-sm text-slate-500">{formatToday()}</p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900">
-            運営ダッシュボード
-          </h1>
+        <div className="mx-auto flex max-w-5xl items-start justify-between px-4 py-6 sm:px-6">
+          <div>
+            <p className="text-sm text-slate-500">{formatToday()}</p>
+            <h1 className="mt-1 text-2xl font-bold text-slate-900">
+              運営ダッシュボード
+            </h1>
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-1 shrink-0 text-xs text-slate-400 underline"
+          >
+            ログアウト
+          </button>
         </div>
       </header>
 
