@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -101,9 +102,9 @@ export default function FarmerLoginPage() {
 
         <p className="mt-6 text-center text-xs text-green-800">
           運営の方は
-          <a href="/login/admin" className="ml-1 underline">
+          <Link href="/login/admin" className="ml-1 underline">
             こちら
-          </a>
+          </Link>
         </p>
       </div>
     </div>

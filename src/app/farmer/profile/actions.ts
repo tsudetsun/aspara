@@ -1,7 +1,4 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/client";
 
 export type UpdateFarmState = {
   status: "idle" | "success" | "error";
@@ -12,7 +9,7 @@ export async function updateCapacity(
   _prevState: UpdateFarmState,
   formData: FormData
 ): Promise<UpdateFarmState> {
-  const supabase = await createClient();
+  const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -43,8 +40,6 @@ export async function updateCapacity(
     };
   }
 
-  revalidatePath("/farmer");
-  revalidatePath("/farmer/profile");
   return { status: "success" };
 }
 
@@ -52,7 +47,7 @@ export async function updateFarmInfo(
   _prevState: UpdateFarmState,
   formData: FormData
 ): Promise<UpdateFarmState> {
-  const supabase = await createClient();
+  const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -83,7 +78,5 @@ export async function updateFarmInfo(
     };
   }
 
-  revalidatePath("/farmer");
-  revalidatePath("/farmer/profile");
   return { status: "success" };
 }

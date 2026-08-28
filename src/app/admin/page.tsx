@@ -1,6 +1,9 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { PRIORITY_INFO, predictFarmStatus, type Priority } from "@/lib/farm-status";
 
 type FarmRow = {
@@ -57,66 +60,89 @@ function buildFarmStatus(farm: FarmRow, avgDailyYield: number): FarmStatus {
   };
 }
 
-export default async function AdminHomePage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export default function AdminHomePage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [farms, setFarms] = useState<FarmStatus[]>([]);
+  const [todaysYield, setTodaysYield] = useState({ totalKg: 0, farmCount: 0 });
 
-  if (!user) {
-    redirect("/login/admin");
-  }
+  useEffect(() => {
+    async function loadData() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-  const historyStart = new Date();
-  historyStart.setDate(historyStart.getDate() - YIELD_HISTORY_DAYS);
+      if (!user) {
+        router.replace("/login/admin");
+        return;
+      }
 
-  const [farmsResult, yieldResult] = await Promise.all([
-    supabase
-      .from("farms")
-      .select("id, name, address, capacity_kg, current_stock_kg"),
-    supabase
-      .from("yield_records")
-      .select("farm_id, amount_kg, occurred_on")
-      .gte("occurred_on", historyStart.toISOString().slice(0, 10)),
-  ]);
+      const historyStart = new Date();
+      historyStart.setDate(historyStart.getDate() - YIELD_HISTORY_DAYS);
 
-  if (farmsResult.error) {
-    console.error("[AdminHomePage] farms fetch failed:", farmsResult.error);
-  }
-  if (yieldResult.error) {
-    console.error(
-      "[AdminHomePage] yield_records fetch failed:",
-      yieldResult.error,
+      const [farmsResult, yieldResult] = await Promise.all([
+        supabase
+          .from("farms")
+          .select("id, name, address, capacity_kg, current_stock_kg"),
+        supabase
+          .from("yield_records")
+          .select("farm_id, amount_kg, occurred_on")
+          .gte("occurred_on", historyStart.toISOString().slice(0, 10)),
+      ]);
+
+      if (farmsResult.error) {
+        console.error("[AdminHomePage] farms fetch failed:", farmsResult.error);
+      }
+      if (yieldResult.error) {
+        console.error(
+          "[AdminHomePage] yield_records fetch failed:",
+          yieldResult.error,
+        );
+      }
+
+      const farmRows = (farmsResult.data ?? []) as FarmRow[];
+      const yieldRows = (yieldResult.data ?? []) as YieldRow[];
+
+      const avgDailyYieldByFarm = new Map<string, number>();
+      for (const row of yieldRows) {
+        avgDailyYieldByFarm.set(
+          row.farm_id,
+          (avgDailyYieldByFarm.get(row.farm_id) ?? 0) + row.amount_kg,
+        );
+      }
+      for (const [farmId, totalKg] of avgDailyYieldByFarm) {
+        avgDailyYieldByFarm.set(farmId, totalKg / YIELD_HISTORY_DAYS);
+      }
+
+      const fillRatio = (f: FarmStatus) =>
+        f.capacity > 0 ? f.currentStock / f.capacity : -1;
+
+      const nextFarms = farmRows
+        .map((farm) => buildFarmStatus(farm, avgDailyYieldByFarm.get(farm.id) ?? 0))
+        .sort((a, b) => fillRatio(b) - fillRatio(a));
+
+      const today = todayString();
+      const todaysYieldRows = yieldRows.filter((r) => r.occurred_on === today);
+
+      setFarms(nextFarms);
+      setTodaysYield({
+        totalKg: todaysYieldRows.reduce((sum, r) => sum + r.amount_kg, 0),
+        farmCount: new Set(todaysYieldRows.map((r) => r.farm_id)).size,
+      });
+      setLoading(false);
+    }
+
+    loadData();
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100">
+        <p className="text-sm text-slate-500">読み込み中...</p>
+      </div>
     );
   }
-
-  const farmRows = (farmsResult.data ?? []) as FarmRow[];
-  const yieldRows = (yieldResult.data ?? []) as YieldRow[];
-
-  const avgDailyYieldByFarm = new Map<string, number>();
-  for (const row of yieldRows) {
-    avgDailyYieldByFarm.set(
-      row.farm_id,
-      (avgDailyYieldByFarm.get(row.farm_id) ?? 0) + row.amount_kg,
-    );
-  }
-  for (const [farmId, totalKg] of avgDailyYieldByFarm) {
-    avgDailyYieldByFarm.set(farmId, totalKg / YIELD_HISTORY_DAYS);
-  }
-
-  const fillRatio = (f: FarmStatus) =>
-    f.capacity > 0 ? f.currentStock / f.capacity : -1;
-
-  const farms = farmRows
-    .map((farm) => buildFarmStatus(farm, avgDailyYieldByFarm.get(farm.id) ?? 0))
-    .sort((a, b) => fillRatio(b) - fillRatio(a));
-
-  const today = todayString();
-  const todaysYieldRows = yieldRows.filter((r) => r.occurred_on === today);
-  const todaysYield = {
-    totalKg: todaysYieldRows.reduce((sum, r) => sum + r.amount_kg, 0),
-    farmCount: new Set(todaysYieldRows.map((r) => r.farm_id)).size,
-  };
 
   const urgentFarms = farms.filter((f) => f.priority === "urgent");
   const totalStock = farms.reduce((sum, f) => sum + f.currentStock, 0);
@@ -161,12 +187,9 @@ export default async function AdminHomePage() {
                     className="rounded-xl border border-red-200 bg-red-50 p-4"
                   >
                     <div className="flex items-center justify-between">
-                      <Link
-                        href={`/admin/farms/${farm.id}`}
-                        className="text-lg font-bold text-slate-900 hover:underline"
-                      >
+                      <p className="text-lg font-bold text-slate-900">
                         {PRIORITY_INFO.urgent.emoji} {farm.name}
-                      </Link>
+                      </p>
                       <span className="rounded-full bg-red-600 px-2.5 py-1 text-xs font-semibold text-white">
                         {farm.predictedLabel}
                       </span>
@@ -189,6 +212,13 @@ export default async function AdminHomePage() {
                         />
                       </div>
                     </div>
+
+                    <Link
+                      href={`/admin/farms/detail?id=${farm.id}`}
+                      className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-red-700 hover:underline"
+                    >
+                      農家の詳細を見る →
+                    </Link>
                   </div>
                 );
               })}
@@ -279,6 +309,9 @@ export default async function AdminHomePage() {
           <h2 className="text-base font-semibold text-slate-900">
             農家別の保管状況
           </h2>
+          <p className="mt-1 text-xs text-slate-400">
+            農家名または「詳細を見る」から、住所・連絡先などの詳細ページを確認できます。
+          </p>
           {farms.length === 0 ? (
             <p className="mt-4 text-sm text-slate-400">
               登録されている農家がまだありません。
@@ -293,7 +326,8 @@ export default async function AdminHomePage() {
                     <th className="py-2 pr-4 font-medium">保管上限</th>
                     <th className="py-2 pr-4 font-medium">残り容量</th>
                     <th className="py-2 pr-4 font-medium">予測</th>
-                    <th className="py-2 font-medium">優先度</th>
+                    <th className="py-2 pr-4 font-medium">優先度</th>
+                    <th className="py-2 font-medium">詳細</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -303,8 +337,8 @@ export default async function AdminHomePage() {
                       <tr key={farm.id} className="border-b border-slate-100">
                         <td className="py-2 pr-4 font-medium text-slate-900">
                           <Link
-                            href={`/admin/farms/${farm.id}`}
-                            className="hover:underline"
+                            href={`/admin/farms/detail?id=${farm.id}`}
+                            className="text-blue-700 underline underline-offset-2 hover:text-blue-900"
                           >
                             {farm.name}
                           </Link>
@@ -321,12 +355,20 @@ export default async function AdminHomePage() {
                         <td className="py-2 pr-4 text-slate-700">
                           {farm.predictedLabel}
                         </td>
-                        <td className="py-2">
+                        <td className="py-2 pr-4">
                           <span
                             className={`rounded-full px-2.5 py-1 text-xs font-semibold ${info.badge}`}
                           >
                             {info.emoji} {info.label}
                           </span>
+                        </td>
+                        <td className="py-2">
+                          <Link
+                            href={`/admin/farms/detail?id=${farm.id}`}
+                            className="whitespace-nowrap text-sm font-semibold text-blue-700 hover:underline"
+                          >
+                            詳細を見る →
+                          </Link>
                         </td>
                       </tr>
                     );

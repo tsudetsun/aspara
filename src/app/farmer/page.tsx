@@ -1,6 +1,9 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import YieldForm from "./yield-form";
 
 type Farm = {
@@ -31,63 +34,88 @@ function formatDate(dateStr: string) {
   }).format(new Date(dateStr));
 }
 
-export default async function FarmerHomePage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export default function FarmerHomePage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [farm, setFarm] = useState<Farm | null>(null);
+  const [recentRecords, setRecentRecords] = useState<YieldRecord[]>([]);
+  const [reloadKey, setReloadKey] = useState(0);
+  const reload = () => setReloadKey((k) => k + 1);
 
-  if (!user) {
-    redirect("/login/farmer");
-  }
+  useEffect(() => {
+    async function loadData() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-  // 初回ログイン時など、profile がまだ無ければ farmer として自動登録する
-  const profileResult = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (!profileResult.data) {
-    const { error } = await supabase
-      .from("profiles")
-      .insert({ id: user.id, role: "farmer" });
-    if (error) {
-      console.error("[FarmerHomePage] profile insert failed:", error);
+      if (!user) {
+        router.replace("/login/farmer");
+        return;
+      }
+
+      // 初回ログイン時など、profile がまだ無ければ farmer として自動登録する
+      const profileResult = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!profileResult.data) {
+        const { error } = await supabase
+          .from("profiles")
+          .insert({ id: user.id, role: "farmer" });
+        if (error) {
+          console.error("[FarmerHomePage] profile insert failed:", error);
+        }
+      }
+
+      const selectResult = await supabase
+        .from("farms")
+        .select("id, name, capacity_kg, current_stock_kg")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (selectResult.error) {
+        console.error("[FarmerHomePage] farms select failed:", selectResult.error);
+      }
+      let farmData = selectResult.data as Farm | null;
+
+      if (!farmData) {
+        // 初回ログイン時など、農家レコードがまだ無ければ空の状態で自動作成する
+        const insertResult = await supabase
+          .from("farms")
+          .insert({ id: user.id })
+          .select("id, name, capacity_kg, current_stock_kg")
+          .single();
+        if (insertResult.error) {
+          console.error("[FarmerHomePage] farms insert failed:", insertResult.error);
+        }
+        farmData = insertResult.data as Farm | null;
+      }
+
+      const { data: records } = await supabase
+        .from("yield_records")
+        .select("id, occurred_on, amount_kg")
+        .eq("farm_id", user.id)
+        .order("occurred_on", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      setFarm(farmData);
+      setRecentRecords((records ?? []) as YieldRecord[]);
+      setLoading(false);
     }
+
+    loadData();
+  }, [router, reloadKey]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-green-50">
+        <p className="text-sm text-slate-500">読み込み中...</p>
+      </div>
+    );
   }
 
-  const selectResult = await supabase
-    .from("farms")
-    .select("id, name, capacity_kg, current_stock_kg")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (selectResult.error) {
-    console.error("[FarmerHomePage] farms select failed:", selectResult.error);
-  }
-  let farm = selectResult.data as Farm | null;
-
-  if (!farm) {
-    // 初回ログイン時など、農家レコードがまだ無ければ空の状態で自動作成する
-    const insertResult = await supabase
-      .from("farms")
-      .insert({ id: user.id })
-      .select("id, name, capacity_kg, current_stock_kg")
-      .single();
-    if (insertResult.error) {
-      console.error("[FarmerHomePage] farms insert failed:", insertResult.error);
-    }
-    farm = insertResult.data as Farm | null;
-  }
-
-  const { data: records } = await supabase
-    .from("yield_records")
-    .select("id, occurred_on, amount_kg")
-    .eq("farm_id", user.id)
-    .order("occurred_on", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(5);
-
-  const recentRecords = (records ?? []) as YieldRecord[];
   const capacity = farm?.capacity_kg ?? 0;
   const currentStock = farm?.current_stock_kg ?? 0;
   const remaining = capacity - currentStock;
@@ -158,7 +186,7 @@ export default async function FarmerHomePage() {
           <p className="mt-1 text-sm text-slate-500">
             今日発生した量を選ぶか、入力してください。
           </p>
-          <YieldForm />
+          <YieldForm onSuccess={reload} />
         </section>
 
         {/* 最近の登録履歴 */}
