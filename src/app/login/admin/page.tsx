@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { getUserRole } from "@/lib/supabase/profile";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -18,15 +19,23 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
+    if (error) {
+      setLoading(false);
+      setError("メールアドレスまたはパスワードが正しくありません。");
+      return;
+    }
+
+    const role = await getUserRole(supabase, data.user.id);
     setLoading(false);
 
-    if (error) {
-      setError("メールアドレスまたはパスワードが正しくありません。");
+    if (role !== "admin") {
+      await supabase.auth.signOut();
+      setError("このアカウントは管理者としてログインできません。");
       return;
     }
 

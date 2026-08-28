@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { getUserRole } from "@/lib/supabase/profile";
 import YieldForm from "./yield-form";
 
 type Farm = {
@@ -54,13 +55,15 @@ export default function FarmerHomePage() {
         return;
       }
 
+      const role = await getUserRole(supabase, user.id);
+      if (role === "admin") {
+        await supabase.auth.signOut();
+        router.replace("/login/farmer");
+        return;
+      }
+
       // 初回ログイン時など、profile がまだ無ければ farmer として自動登録する
-      const profileResult = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("id", user.id)
-        .maybeSingle();
-      if (!profileResult.data) {
+      if (role === null) {
         const { error } = await supabase
           .from("profiles")
           .insert({ id: user.id, role: "farmer" });

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { getUserRole } from "@/lib/supabase/profile";
 import CapacityForm from "./capacity-form";
 import FarmInfoForm from "./farm-info-form";
 
@@ -40,6 +41,13 @@ export default function FarmerProfilePage() {
       } = await supabase.auth.getUser();
 
       if (!user) {
+        router.replace("/login/farmer");
+        return;
+      }
+
+      const role = await getUserRole(supabase, user.id);
+      if (role !== "farmer") {
+        await supabase.auth.signOut();
         router.replace("/login/farmer");
         return;
       }
