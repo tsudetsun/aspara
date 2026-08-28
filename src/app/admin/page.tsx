@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { getUserRole } from "@/lib/supabase/profile";
 import { PRIORITY_INFO, predictFarmStatus, type Priority } from "@/lib/farm-status";
 
 type FarmRow = {
@@ -74,6 +75,13 @@ export default function AdminHomePage() {
       } = await supabase.auth.getUser();
 
       if (!user) {
+        router.replace("/login/admin");
+        return;
+      }
+
+      const role = await getUserRole(supabase, user.id);
+      if (role !== "admin") {
+        await supabase.auth.signOut();
         router.replace("/login/admin");
         return;
       }
