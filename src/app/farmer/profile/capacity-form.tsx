@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect } from "react";
 import { updateCapacity, type UpdateFarmState } from "./actions";
 
 const initialState: UpdateFarmState = { status: "idle" };
@@ -17,13 +17,12 @@ export default function CapacityForm({
     initialState
   );
 
-  const [lastStatus, setLastStatus] = useState(state.status);
-  if (state.status !== lastStatus) {
-    setLastStatus(state.status);
+  useEffect(() => {
     if (state.status === "success") {
       onSuccess?.();
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   return (
     <form action={formAction}>

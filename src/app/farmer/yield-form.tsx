@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { registerYield, type RegisterYieldState } from "./actions";
 
 const QUICK_AMOUNTS = [1, 3, 5, 10];
@@ -29,9 +29,16 @@ export default function YieldForm({
     setLastStatus(state.status);
     if (state.status === "success") {
       setAmount("");
-      onSuccess?.();
     }
   }
+
+  // 親コンポーネントへの通知はレンダー中に行えないため、effectで行う
+  useEffect(() => {
+    if (state.status === "success") {
+      onSuccess?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   return (
     <form ref={formRef} action={formAction} className="mt-4">
