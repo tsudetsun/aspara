@@ -210,6 +210,12 @@ export default function AdminHomePage() {
               >
                 収集量を登録
               </Link>
+              <Link
+                href="/admin/history"
+                className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-800"
+              >
+                収集履歴
+              </Link>
             </div>
             <button
               type="button"
