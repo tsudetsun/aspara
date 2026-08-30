@@ -23,8 +23,18 @@ type YieldRecord = {
   amount_kg: number;
 };
 
+type ScheduleRecord = {
+  id: string;
+  scheduled_date: string;
+  memo: string;
+};
+
 const YIELD_HISTORY_DAYS = 30;
 const RECENT_RECORDS_LIMIT = 10;
+
+function todayString() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 function formatDate(dateStr: string) {
   return new Intl.DateTimeFormat("ja-JP", {
@@ -43,6 +53,7 @@ function AdminFarmDetailContent() {
   const [farm, setFarm] = useState<Farm | null>(null);
   const [recentRecords, setRecentRecords] = useState<YieldRecord[]>([]);
   const [avgDailyYield, setAvgDailyYield] = useState(0);
+  const [upcomingSchedules, setUpcomingSchedules] = useState<ScheduleRecord[]>([]);
 
   useEffect(() => {
     if (!id) {
@@ -70,7 +81,7 @@ function AdminFarmDetailContent() {
       const historyStart = new Date();
       historyStart.setDate(historyStart.getDate() - YIELD_HISTORY_DAYS);
 
-      const [farmResult, recentYieldResult, historyYieldResult] =
+      const [farmResult, recentYieldResult, historyYieldResult, scheduleResult] =
         await Promise.all([
           supabase
             .from("farms")
@@ -91,10 +102,22 @@ function AdminFarmDetailContent() {
             .select("amount_kg")
             .eq("farm_id", id)
             .gte("occurred_on", historyStart.toISOString().slice(0, 10)),
+          supabase
+            .from("collection_schedules")
+            .select("id, scheduled_date, memo")
+            .eq("farm_id", id)
+            .gte("scheduled_date", todayString())
+            .order("scheduled_date", { ascending: true }),
         ]);
 
       if (farmResult.error) {
         console.error("[AdminFarmDetailPage] farm fetch failed:", farmResult.error);
+      }
+      if (scheduleResult.error) {
+        console.error(
+          "[AdminFarmDetailPage] collection_schedules fetch failed:",
+          scheduleResult.error
+        );
       }
 
       const farmData = farmResult.data as Farm | null;
@@ -111,6 +134,7 @@ function AdminFarmDetailContent() {
       setFarm(farmData);
       setRecentRecords((recentYieldResult.data ?? []) as YieldRecord[]);
       setAvgDailyYield(historyTotal / YIELD_HISTORY_DAYS);
+      setUpcomingSchedules((scheduleResult.data ?? []) as ScheduleRecord[]);
       setLoading(false);
     }
 
@@ -212,6 +236,39 @@ function AdminFarmDetailContent() {
             </>
           ) : (
             <p className="mt-2 text-sm text-slate-400">保管上限が未設定です。</p>
+          )}
+        </section>
+
+        {/* 収集予定 */}
+        <section className="mt-6 rounded-xl bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-slate-900">
+              収集予定
+            </h2>
+            <Link
+              href={`/admin/schedules?farmId=${farm.id}`}
+              className="text-sm font-semibold text-blue-700 hover:underline"
+            >
+              予定を登録する →
+            </Link>
+          </div>
+          {upcomingSchedules.length === 0 ? (
+            <p className="mt-3 text-sm text-slate-400">
+              まだ収集予定が登録されていません。
+            </p>
+          ) : (
+            <ul className="mt-3 divide-y divide-slate-100">
+              {upcomingSchedules.map((s) => (
+                <li key={s.id} className="py-2 text-sm">
+                  <span className="font-semibold text-slate-900">
+                    {formatDate(s.scheduled_date)}
+                  </span>
+                  {s.memo && (
+                    <span className="ml-2 text-slate-500">{s.memo}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
           )}
         </section>
 
