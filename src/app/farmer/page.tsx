@@ -20,6 +20,15 @@ type YieldRecord = {
   amount_kg: number;
 };
 
+type ScheduleRecord = {
+  scheduled_date: string;
+  memo: string;
+};
+
+function todayString() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function formatToday() {
   return new Intl.DateTimeFormat("ja-JP", {
     month: "long",
@@ -35,11 +44,20 @@ function formatDate(dateStr: string) {
   }).format(new Date(dateStr));
 }
 
+function formatScheduleDate(dateStr: string) {
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+  }).format(new Date(dateStr));
+}
+
 export default function FarmerHomePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [farm, setFarm] = useState<Farm | null>(null);
   const [recentRecords, setRecentRecords] = useState<YieldRecord[]>([]);
+  const [nextSchedule, setNextSchedule] = useState<ScheduleRecord | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const reload = () => setReloadKey((k) => k + 1);
 
@@ -103,8 +121,23 @@ export default function FarmerHomePage() {
         .order("created_at", { ascending: false })
         .limit(5);
 
+      const { data: schedules, error: scheduleError } = await supabase
+        .from("collection_schedules")
+        .select("scheduled_date, memo")
+        .eq("farm_id", user.id)
+        .gte("scheduled_date", todayString())
+        .order("scheduled_date", { ascending: true })
+        .limit(1);
+      if (scheduleError) {
+        console.error(
+          "[FarmerHomePage] collection_schedules select failed:",
+          scheduleError
+        );
+      }
+
       setFarm(farmData);
       setRecentRecords((records ?? []) as YieldRecord[]);
+      setNextSchedule(((schedules ?? []) as ScheduleRecord[])[0] ?? null);
       setLoading(false);
     }
 
@@ -160,8 +193,25 @@ export default function FarmerHomePage() {
       </header>
 
       <main className="mx-auto max-w-md px-4 py-6">
+        {/* 次回の収集予定 */}
+        {nextSchedule && (
+          <section className="rounded-2xl border-2 border-green-300 bg-white p-5 shadow-sm">
+            <p className="text-sm text-slate-500">次回の収集予定</p>
+            <p className="mt-1 text-2xl font-bold text-green-900">
+              {formatScheduleDate(nextSchedule.scheduled_date)}
+            </p>
+            {nextSchedule.memo && (
+              <p className="mt-1 text-sm text-slate-500">
+                {nextSchedule.memo}
+              </p>
+            )}
+          </section>
+        )}
+
         {/* 保管状況 */}
-        <section className="rounded-2xl bg-white p-5 shadow-sm">
+        <section
+          className={`rounded-2xl bg-white p-5 shadow-sm ${nextSchedule ? "mt-6" : ""}`}
+        >
           <p className="text-sm text-slate-500">現在の保管量</p>
           <p className="mt-1 text-4xl font-bold text-green-900">
             {currentStock}

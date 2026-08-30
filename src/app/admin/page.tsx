@@ -21,6 +21,11 @@ type YieldRow = {
   occurred_on: string;
 };
 
+type ScheduleRow = {
+  farm_id: string;
+  scheduled_date: string;
+};
+
 type FarmStatus = {
   id: string;
   name: string;
@@ -66,6 +71,7 @@ export default function AdminHomePage() {
   const [loading, setLoading] = useState(true);
   const [farms, setFarms] = useState<FarmStatus[]>([]);
   const [todaysYield, setTodaysYield] = useState({ totalKg: 0, farmCount: 0 });
+  const [todaysSchedule, setTodaysSchedule] = useState({ farmCount: 0 });
 
   useEffect(() => {
     async function loadData() {
@@ -89,7 +95,9 @@ export default function AdminHomePage() {
       const historyStart = new Date();
       historyStart.setDate(historyStart.getDate() - YIELD_HISTORY_DAYS);
 
-      const [farmsResult, yieldResult] = await Promise.all([
+      const today = todayString();
+
+      const [farmsResult, yieldResult, scheduleResult] = await Promise.all([
         supabase
           .from("farms")
           .select("id, name, address, capacity_kg, current_stock_kg"),
@@ -97,6 +105,10 @@ export default function AdminHomePage() {
           .from("yield_records")
           .select("farm_id, amount_kg, occurred_on")
           .gte("occurred_on", historyStart.toISOString().slice(0, 10)),
+        supabase
+          .from("collection_schedules")
+          .select("farm_id, scheduled_date")
+          .eq("scheduled_date", today),
       ]);
 
       if (farmsResult.error) {
@@ -108,9 +120,16 @@ export default function AdminHomePage() {
           yieldResult.error,
         );
       }
+      if (scheduleResult.error) {
+        console.error(
+          "[AdminHomePage] collection_schedules fetch failed:",
+          scheduleResult.error,
+        );
+      }
 
       const farmRows = (farmsResult.data ?? []) as FarmRow[];
       const yieldRows = (yieldResult.data ?? []) as YieldRow[];
+      const scheduleRows = (scheduleResult.data ?? []) as ScheduleRow[];
 
       const avgDailyYieldByFarm = new Map<string, number>();
       for (const row of yieldRows) {
@@ -130,13 +149,15 @@ export default function AdminHomePage() {
         .map((farm) => buildFarmStatus(farm, avgDailyYieldByFarm.get(farm.id) ?? 0))
         .sort((a, b) => fillRatio(b) - fillRatio(a));
 
-      const today = todayString();
       const todaysYieldRows = yieldRows.filter((r) => r.occurred_on === today);
 
       setFarms(nextFarms);
       setTodaysYield({
         totalKg: todaysYieldRows.reduce((sum, r) => sum + r.amount_kg, 0),
         farmCount: new Set(todaysYieldRows.map((r) => r.farm_id)).size,
+      });
+      setTodaysSchedule({
+        farmCount: new Set(scheduleRows.map((r) => r.farm_id)).size,
       });
       setLoading(false);
     }
@@ -175,13 +196,35 @@ export default function AdminHomePage() {
               運営ダッシュボード
             </h1>
           </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="mt-1 shrink-0 text-xs text-slate-400 underline"
-          >
-            ログアウト
-          </button>
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            <div className="flex gap-2">
+              <Link
+                href="/admin/schedules"
+                className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-800"
+              >
+                収集予定を登録
+              </Link>
+              <Link
+                href="/admin/collections"
+                className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-800"
+              >
+                収集量を登録
+              </Link>
+              <Link
+                href="/admin/history"
+                className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-800"
+              >
+                収集履歴
+              </Link>
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="text-xs text-slate-400 underline"
+            >
+              ログアウト
+            </button>
+          </div>
         </div>
       </header>
 
@@ -296,9 +339,18 @@ export default function AdminHomePage() {
 
           <div className="rounded-xl bg-white p-5 shadow-sm">
             <p className="text-sm text-slate-500">本日の収集予定</p>
-            <p className="mt-2 text-sm text-slate-400">
-              収集予定機能は準備中です
+            <p className="mt-2 text-3xl font-bold text-slate-900">
+              {todaysSchedule.farmCount}
+              <span className="ml-1 text-base font-normal text-slate-500">
+                件
+              </span>
             </p>
+            <Link
+              href="/admin/schedules"
+              className="mt-1 inline-block text-xs text-blue-700 hover:underline"
+            >
+              収集予定を登録する →
+            </Link>
           </div>
 
           <div className="rounded-xl bg-white p-5 shadow-sm">
