@@ -102,6 +102,26 @@
     position: relative;
   }
 
+  header.hero .cta-login {
+    display: inline-block;
+    margin-top: 24px;
+    background: #ffffff;
+    color: var(--green-800, var(--green-700));
+    padding: 14px 32px;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 1rem;
+    text-decoration: none;
+    position: relative;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  header.hero .cta-login:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.22);
+  }
+
   /* Nav pills */
   nav.toc {
     max-width: 880px;
@@ -338,6 +358,7 @@
   <div class="badge-strong">
     農家の保管容量を超えて廃棄される前に、収集タイミングを提案する
   </div>
+  <a class="cta-login" href="https://tsudetsun.github.io/aspara/">ログインはこちら</a>
 </header>
 
 <nav class="toc">
@@ -574,7 +595,7 @@
 </main>
 
 <footer>
-  アスパラガス収集管理アプリ &mdash; README.md をもとに作成
+  アスパラガス収集管理アプリ
 </footer>
 
 <script>
