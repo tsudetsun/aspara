@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アスパラガス収集管理アプリ</title>
+<style>
+  :root {
+    --green-50: #f0f7ee;
+    --green-100: #dcecd6;
+    --green-500: #4a8f3c;
+    --green-600: #3d7a30;
+    --green-700: #2f5f26;
+    --green-900: #1c3817;
+    --ink: #22291f;
+    --muted: #5c6b57;
+    --paper: #fffdf9;
+    --card: #ffffff;
+    --line: #e3e8dd;
+    --red: #e0463f;
+    --yellow: #d99a1f;
+    --shadow: 0 8px 24px rgba(28, 56, 23, 0.08);
+    --radius: 16px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", -apple-system,
+      BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.8;
+  }
+
+  a { color: var(--green-700); }
+
+  .wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  /* Hero */
+  header.hero {
+    background: linear-gradient(160deg, var(--green-700), var(--green-900));
+    color: #f4f9f1;
+    padding: 72px 20px 96px;
+    position: relative;
+    overflow: hidden;
+    text-align: center;
+  }
+
+  header.hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 15% 20%, rgba(255,255,255,0.08), transparent 40%),
+      radial-gradient(circle at 85% 80%, rgba(255,255,255,0.08), transparent 40%);
+  }
+
+  header.hero .eyebrow {
+    display: inline-block;
+    letter-spacing: 0.12em;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    background: rgba(255,255,255,0.14);
+    padding: 6px 14px;
+    border-radius: 999px;
+    margin-bottom: 20px;
+    position: relative;
+  }
+
+  header.hero h1 {
+    margin: 0 0 18px;
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    font-weight: 800;
+    position: relative;
+  }
+
+  header.hero p {
+    max-width: 640px;
+    margin: 0 auto;
+    color: #e3ede0;
+    font-size: 1.02rem;
+    position: relative;
+  }
+
+  header.hero .badge-strong {
+    display: inline-block;
+    margin-top: 22px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.25);
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    position: relative;
+  }
+
+  /* Nav pills */
+  nav.toc {
+    max-width: 880px;
+    margin: -40px auto 0;
+    padding: 0 20px;
+    position: relative;
+    z-index: 2;
+  }
+
+  nav.toc ul {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 14px;
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  nav.toc a {
+    display: block;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: var(--green-50);
+    color: var(--green-700);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  nav.toc a:hover { background: var(--green-100); }
+
+  main { padding: 64px 0 40px; }
+
+  section { margin-bottom: 72px; scroll-margin-top: 24px; }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .section-head .num {
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: #fff;
+    background: var(--green-600);
+    border-radius: 8px;
+    padding: 4px 10px;
+  }
+
+  .section-head h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--green-900);
+  }
+
+  section > .lede {
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--shadow);
+  }
+
+  .grid {
+    display: grid;
+    gap: 20px;
+  }
+
+  .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+  @media (max-width: 720px) {
+    .grid.cols-2, .grid.cols-4 { grid-template-columns: 1fr; }
+  }
+
+  .role-card h3 {
+    margin: 0 0 12px;
+    font-size: 1.1rem;
+    color: var(--green-700);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .role-card ul { margin: 0; padding-left: 1.2em; color: var(--ink); }
+  .role-card li { margin-bottom: 6px; }
+
+  .feature-card {
+    position: relative;
+    padding-top: 20px;
+  }
+
+  .feature-card .icon {
+    font-size: 1.6rem;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .feature-card h3 {
+    margin: 0 0 10px;
+    font-size: 1.05rem;
+    color: var(--green-900);
+  }
+
+  .feature-card p { margin: 0 0 10px; color: var(--muted); font-size: 0.95rem; }
+
+  .example {
+    background: var(--green-50);
+    border-left: 3px solid var(--green-500);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+    color: var(--green-900);
+    margin-top: 10px;
+  }
+
+  .example .calc {
+    font-weight: 700;
+    margin-top: 4px;
+  }
+
+  .callout {
+    background: var(--green-900);
+    color: #f4f9f1;
+    border-radius: var(--radius);
+    padding: 28px;
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+
+  .callout small {
+    display: block;
+    font-weight: 400;
+    font-size: 0.85rem;
+    color: #cfe1c9;
+    margin-top: 8px;
+  }
+
+  table.priority {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+
+  table.priority th, table.priority td {
+    padding: 12px 14px;
+    text-align: center;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.92rem;
+  }
+
+  table.priority th {
+    background: var(--green-700);
+    color: #fff;
+    font-weight: 700;
+  }
+
+  table.priority tr:last-child td { border-bottom: none; }
+  table.priority tr:nth-child(even) td { background: var(--green-50); }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin: 18px 0;
+  }
+
+  .legend .pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+
+  .pill.high { background: #fdecea; color: var(--red); }
+  .pill.mid { background: #fdf3dc; color: var(--yellow); }
+  .pill.low { background: var(--green-50); color: var(--green-700); }
+
+  .future-grid { display: grid; gap: 16px; grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 720px) { .future-grid { grid-template-columns: 1fr; } }
+
+  .future-card {
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+  }
+
+  .future-card h3 {
+    margin: 0 0 8px;
+    font-size: 1rem;
+    color: var(--green-700);
+  }
+
+  .future-card p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+  footer {
+    text-align: center;
+    padding: 40px 20px 60px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  strong.hl { color: var(--green-700); }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <span class="eyebrow">FARM &amp; COLLECTION MANAGEMENT</span>
+  <h1>アスパラガス収集管理アプリ</h1>
+  <p>
+    規格外アスパラガスを農家から継続的かつ効率的に収集するための管理アプリ。
+    農家の発生量・保管状況を見える化し、運営側が「どの農家へ、いつ収集に行くべきか」を判断できるようにする。
+  </p>
+  <div class="badge-strong">
+    農家の保管容量を超えて廃棄される前に、収集タイミングを提案する
+  </div>
+</header>
+
+<nav class="toc">
+  <ul>
+    <li><a href="#purpose">1. 目的</a></li>
+    <li><a href="#users">2. 利用者</a></li>
+    <li><a href="#features">3. 重要な機能</a></li>
+    <li><a href="#priority">5. 収集優先度</a></li>
+    <li><a href="#management">6. 収集管理</a></li>
+    <li><a href="#request">7. 収集依頼</a></li>
+    <li><a href="#dashboard">8. ダッシュボード</a></li>
+    <li><a href="#history">9. 収集履歴</a></li>
+    <li><a href="#future">10. 将来機能</a></li>
+  </ul>
+</nav>
+
+<main class="wrap">
+
+  <section id="purpose">
+    <div class="section-head"><span class="num">1</span><h2>アプリの目的</h2></div>
+    <div class="card">
+      <p>
+        現在は、農家ごとに「どのくらい規格外アスパラガスが発生しているか」「どのくらい保管できるか」を把握し、
+        収集するタイミングを判断する必要がある。
+      </p>
+      <p>
+        このアプリでは、農家が規格外アスパラガスの発生量を登録し、その情報をもとに、運営側が
+        「どの農家へ、いつ収集に行くべきか」を判断できるようにする。
+      </p>
+      <p style="margin-bottom:0;">
+        単純な在庫管理ではなく、<strong class="hl">農家の保管容量を超えて規格外アスパラガスが廃棄される前に、
+        収集タイミングを提案すること</strong>が主な目的。
+      </p>
+    </div>
+  </section>
+
+  <section id="users">
+    <div class="section-head"><span class="num">2</span><h2>利用者</h2></div>
+    <p class="lede">利用者は大きく2種類。</p>
+    <div class="grid cols-2">
+      <div class="card role-card">
+        <h3>🧑‍🌾 農家</h3>
+        <p style="color:var(--muted); margin-top:0;">自分の農家の情報を登録・確認する。</p>
+        <ul>
+          <li>規格外アスパラガスの発生量を登録</li>
+          <li>保管可能量を登録・変更</li>
+          <li>現在の保管量を確認</li>
+          <li>収集依頼を送る</li>
+          <li>次回の収集予定を確認する</li>
+        </ul>
+      </div>
+      <div class="card role-card">
+        <h3>🏢 運営側</h3>
+        <p style="color:var(--muted); margin-top:0;">複数の農家の情報をまとめて管理する。</p>
+        <ul>
+          <li>農家を登録・編集</li>
+          <li>各農家の現在の保管量を確認</li>
+          <li>保管可能量を確認</li>
+          <li>各農家の収集優先度を確認</li>
+          <li>システムが提案した収集タイミングを確認</li>
+          <li>収集予定を登録</li>
+          <li>実際に収集した量を登録</li>
+          <li>収集済みにする</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="section-head"><span class="num">3</span><h2>重要な機能</h2></div>
+    <div class="grid cols-2">
+      <div class="card feature-card">
+        <span class="icon">📋</span>
+        <h3>① 農家情報の登録</h3>
+        <p>農家ごとに以下の情報を登録できるようにする。</p>
+        <ul style="margin:0; padding-left:1.2em; color:var(--ink); font-size:0.95rem;">
+          <li>農家名</li>
+          <li>住所</li>
+          <li>電話番号などの連絡先</li>
+          <li>保管可能量（kg）</li>
+          <li>現在の保管量（kg）</li>
+          <li>必要に応じてメモ</li>
+        </ul>
+        <p style="margin-top:10px; font-size:0.88rem;">住所は、将来的に地図上で農家の位置を確認できるようにする。</p>
+      </div>
+
+      <div class="card feature-card">
+        <span class="icon">➕</span>
+        <h3>② 発生量の登録</h3>
+        <p>農家が、その日に発生した規格外アスパラガスの量を登録できるようにする。登録すると、現在の保管量に自動的に加算する。</p>
+        <div class="example">
+          8月12日 / 発生量：5kg
+          <div class="calc">現在保管量 20kg ＋ 本日の発生量 5kg ＝ 現在保管量 25kg</div>
+        </div>
+      </div>
+
+      <div class="card feature-card">
+        <span class="icon">📦</span>
+        <h3>③ 保管可能量の管理</h3>
+        <p>農家ごとに「最大で何kg保管できるか」を登録する。現在保管量が保管可能量に近づくほど、収集の優先度を高くする。</p>
+        <div class="example">
+          保管可能量：30kg / 現在保管量：25kg
+          <div class="calc">「あと5kgで保管上限」と分かるようにする</div>
+        </div>
+      </div>
+
+      <div class="card feature-card">
+        <span class="icon">🔮</span>
+        <h3>④ 収集タイミングの自動提案</h3>
+        <p><strong class="hl">このアプリの最も重要な機能。</strong>現在の保管量・保管可能量・過去の発生量などから「この農家はいつ収集するべきか」を自動的に提案する。</p>
+        <div class="example">
+          農家A：保管可能量30kg / 現在保管量20kg / 平均発生量5kg/日
+          <div class="calc">「約2日後に保管上限に到達する見込み」「8月14日までの収集を推奨」</div>
+        </div>
+        <p style="margin-top:10px; font-size:0.85rem;">最初のバージョンでは、複雑なAI予測ではなく過去の平均発生量を使ったシンプルな計算でよい。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="priority">
+    <div class="section-head"><span class="num">5</span><h2>収集優先度</h2></div>
+    <p class="lede">運営側の画面では、農家を収集優先度順に並べられるようにする。</p>
+    <div class="legend">
+      <span class="pill high">🔴 最優先 — 保管上限に近い、または超える可能性がある</span>
+      <span class="pill mid">🟡 優先 — 数日以内に保管上限に到達する可能性がある</span>
+      <span class="pill low">🟢 余裕あり — まだ十分な保管余裕がある</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="priority">
+        <thead>
+          <tr><th>農家</th><th>現在量</th><th>保管上限</th><th>残り容量</th><th>予測</th><th>優先度</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>A農家</td><td>28kg</td><td>30kg</td><td>2kg</td><td>今日</td><td>🔴</td></tr>
+          <tr><td>B農家</td><td>20kg</td><td>30kg</td><td>10kg</td><td>2日後</td><td>🟡</td></tr>
+          <tr><td>C農家</td><td>10kg</td><td>30kg</td><td>20kg</td><td>4日後</td><td>🟢</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="management">
+    <div class="section-head"><span class="num">6</span><h2>収集管理</h2></div>
+    <div class="card">
+      <p>運営側が、収集予定を登録できるようにする。</p>
+      <div class="example">「8月14日にA農家・B農家を収集」という予定を作成する。</div>
+      <p style="margin-top:16px;">収集が完了したら、以下を記録する。</p>
+      <ul style="margin:0; padding-left:1.2em;">
+        <li>収集日</li>
+        <li>農家</li>
+        <li>収集量</li>
+        <li>担当者</li>
+        <li>メモ</li>
+      </ul>
+      <p style="margin-top:16px;">収集量を登録すると、その農家の現在保管量から自動的に差し引く。</p>
+      <div class="example">
+        収集前：28kg / 収集量：25kg
+        <div class="calc">収集後：3kg</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="request">
+    <div class="section-head"><span class="num">7</span><h2>農家からの収集依頼</h2></div>
+    <div class="card">
+      <p>農家側から「収集してほしい」と運営側に知らせる機能を作る。「収集を依頼する」ボタンを押すと、運営側の画面に収集依頼が表示される。</p>
+      <p>収集依頼には、以下を表示する。</p>
+      <ul style="margin:0; padding-left:1.2em;">
+        <li>依頼日時</li>
+        <li>現在の保管量</li>
+        <li>保管上限</li>
+        <li>メッセージ</li>
+      </ul>
+      <p style="margin-top:16px; margin-bottom:0;">
+        AI・自動予測による提案だけでなく、<strong class="hl">農家自身が「回収してほしい」と判断できる仕組み</strong>にする。
+      </p>
+    </div>
+  </section>
+
+  <section id="dashboard">
+    <div class="section-head"><span class="num">8</span><h2>ダッシュボード</h2></div>
+    <div class="card">
+      <p>運営側がログインしたとき、最初に全体の状況を確認できる画面を作る。</p>
+      <ul style="margin:0; padding-left:1.2em; columns:2; column-gap:24px;">
+        <li>登録農家数</li>
+        <li>現在の総保管量</li>
+        <li>本日の発生量</li>
+        <li>本日の収集予定</li>
+        <li>収集が必要な農家数</li>
+        <li>最優先で収集すべき農家</li>
+      </ul>
+    </div>
+    <div class="callout" style="margin-top:20px;">
+      「今日、どこへ収集に行くべきか」がすぐ分かるUIにする
+    </div>
+  </section>
+
+  <section id="history">
+    <div class="section-head"><span class="num">9</span><h2>収集履歴</h2></div>
+    <div class="card">
+      <p>過去の収集記録を保存する。農家ごとに、以下を確認できるようにする。</p>
+      <ul style="margin:0; padding-left:1.2em;">
+        <li>発生量</li>
+        <li>収集量</li>
+        <li>収集日</li>
+        <li>収集回数</li>
+      </ul>
+      <p style="margin-top:16px; margin-bottom:0; color:var(--muted);">
+        将来的には、月ごとの発生量・農家ごとの平均発生量・年間収集量・廃棄を防げた規格外アスパラガスの量などを分析できるようにしたい。
+      </p>
+    </div>
+  </section>
+
+  <section id="future">
+    <div class="section-head"><span class="num">10</span><h2>将来的に追加したい機能</h2></div>
+    <p class="lede">最初のバージョンでは必須ではないが、将来的には以下を追加したい。</p>
+    <div class="future-grid">
+      <div class="future-card">
+        <h3>🗺️ 地図・ルート管理</h3>
+        <p>複数の農家を地図上に表示し、「今日はA→B→Cの順番で収集する」といった収集ルートを管理できるようにする。</p>
+      </div>
+      <div class="future-card">
+        <h3>📈 発生量予測</h3>
+        <p>過去のデータから、「この農家は今後○日間で○kg程度発生する」と予測する。</p>
+      </div>
+      <div class="future-card">
+        <h3>🥤 必要原料量との連携</h3>
+        <p>飲料製造に必要なアスパラガス量と現在の収集見込み量を比較し、製造に必要な原料を確保できる見込みを表示する。</p>
+      </div>
+    </div>
+  </section>
+
+
+</main>
+
+<footer>
+  アスパラガス収集管理アプリ &mdash; README.md をもとに作成
+</footer>
+
+<script>
+  document.querySelectorAll('nav.toc a[href^="#"]').forEach(function (link) {
+    link.addEventListener('click', function (event) {
+      var target = document.querySelector(link.getAttribute('href'));
+      if (!target) return;
+      event.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+</script>
+
+</body>
+</html>
